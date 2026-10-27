@@ -1,245 +1,319 @@
 
 {% extends "base.html" %}
+
 {% block title %}FootRate{% endblock %}
 
 {% block content %}
 <style>
-  body {
-    margin: 0;
-  }
+    * {
+        box-sizing: border-box;
+    }
 
-  .fr-app {
-    position: fixed;
-    inset: 0;
-    background: #080808;
-    color: white;
-    overflow: hidden;
-    font-family: Arial, sans-serif;
-  }
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: #000;
+    }
 
-  .fr-feed {
-    width: 100%;
-    height: 100%;
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
+    .fr-app {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100dvh;
+        background: #000;
+        color: #fff;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+    }
 
-  .fr-slide {
-    display: none;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-  }
+    .fr-feed {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+        overscroll-behavior-x: contain;
+    }
 
-  .fr-slide.active {
-    display: flex;
-  }
+    .fr-feed::-webkit-scrollbar {
+        display: none;
+    }
 
-  .fr-image {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    user-select: none;
-    -webkit-user-drag: none;
-    cursor: zoom-in;
-  }
+    .fr-slide {
+        position: relative;
+        flex: 0 0 100%;
+        width: 100%;
+        height: 100%;
+        scroll-snap-align: start;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        overflow: hidden;
+    }
 
-  .fr-empty {
-    padding: 24px;
-    text-align: center;
-    color: #aaa;
-  }
+    .fr-photo {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        cursor: zoom-in;
+        user-select: none;
+        -webkit-user-drag: none;
+    }
 
-  .fr-upload {
-    position: fixed;
-    z-index: 20;
-    bottom: max(22px, env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
-    width: 58px;
-    height: 58px;
-    border: none;
-    border-radius: 50%;
-    background: #fff;
-    color: #111;
-    font-size: 38px;
-    line-height: 1;
-    cursor: pointer;
-    box-shadow: 0 4px 22px #0008;
-  }
+    .fr-empty {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+        text-align: center;
+        color: #aaa;
+        font-size: 17px;
+    }
 
-  .fr-upload:active {
-    transform: translateX(-50%) scale(.94);
-  }
+    .fr-upload-form {
+        position: fixed;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1002;
+        margin: 0;
+    }
 
-  .fr-file {
-    display: none;
-  }
+    .fr-plus {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 58px;
+        height: 58px;
+        border: none;
+        border-radius: 50%;
+        background: #fff;
+        color: #111;
+        font-size: 38px;
+        font-weight: 400;
+        cursor: pointer;
+        box-shadow: 0 3px 20px #0008;
+    }
 
-  .fr-lightbox {
-    position: fixed;
-    z-index: 40;
-    inset: 0;
-    background: #000f;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
-  }
+    .fr-plus:active {
+        transform: scale(.94);
+    }
 
-  .fr-lightbox[hidden] {
-    display: none;
-  }
+    .fr-notice {
+        position: fixed;
+        z-index: 1001;
+        bottom: 92px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(88%, 360px);
+        padding: 11px 15px;
+        border: 1px solid #333;
+        border-radius: 13px;
+        background: #171717ed;
+        color: #fff;
+        text-align: center;
+        font-size: 13px;
+        line-height: 1.5;
+    }
 
-  .fr-lightbox img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  }
+    .fr-lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: #000f;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+    }
 
-  .fr-close {
-    position: absolute;
-    top: 18px;
-    right: 18px;
-    border: none;
-    border-radius: 50%;
-    padding: 12px;
-    background: #222;
-    color: white;
-    font-size: 20px;
-  }
+    .fr-lightbox.open {
+        display: flex;
+    }
+
+    .fr-lightbox img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    .fr-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
+        border: none;
+        border-radius: 50%;
+        background: #222;
+        color: #fff;
+        font-size: 28px;
+        cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+        .fr-plus {
+            width: 56px;
+            height: 56px;
+        }
+
+        .fr-notice {
+            font-size: 12px;
+        }
+    }
 </style>
 
 <div class="fr-app">
-  <div class="fr-feed" id="frFeed">
-    {% if photos %}
-      {% for photo in photos %}
-        <div class="fr-slide {% if loop.first %}active{% endif %}">
-          <img
-            class="fr-image"
-            src="{{ photo['image_url'] }}"
-            alt="Feltöltött kép"
-            draggable="false"
-            loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
-          >
-        </div>
-      {% endfor %}
-    {% else %}
-      <div class="fr-empty">
-        Még nincs kép.
-      </div>
-    {% endif %}
-  </div>
 
-  <form id="frUploadForm"
-        method="post"
+    <div class="fr-feed" id="frFeed">
+        {% if photos %}
+            {% for photo in photos %}
+                <section class="fr-slide">
+                    <img
+                        class="fr-photo"
+                        src="{{ photo['image_url'] }}"
+                        alt="Lábfotó"
+                        draggable="false"
+                        loading="{{ 'eager' if loop.first else 'lazy' }}"
+                    >
+                </section>
+            {% endfor %}
+        {% else %}
+            <div class="fr-empty">
+                Még nincs feltöltött kép.<br>
+                Nyomd meg a + gombot az első kép feltöltéséhez!
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="fr-notice">
+        Kérlek, erre a weboldalra kizárólag lábakról készült képeket tölts fel!
+    </div>
+
+    <form
+        class="fr-upload-form"
+        id="frUploadForm"
+        method="POST"
         action="{{ url_for('upload') }}"
-        enctype="multipart/form-data">
-
-    <input type="hidden" name="csrf_token"
-           value="{{ csrf_token() }}">
-
-    <input
-      class="fr-file"
-      id="frFile"
-      type="file"
-      name="photo"
-      accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-      required
+        enctype="multipart/form-data"
     >
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
 
-    <button class="fr-upload" type="button"
-            id="frUploadButton" aria-label="Kép feltöltése">+</button>
-  </form>
+        <input
+            type="file"
+            id="frPhotoInput"
+            name="photo"
+            accept="image/jpeg,image/png,image/webp"
+            hidden
+            required
+        >
+
+        <button
+            type="button"
+            class="fr-plus"
+            id="frPlus"
+            aria-label="Kép feltöltése"
+        >+</button>
+    </form>
+
 </div>
 
-<div class="fr-lightbox" id="frLightbox" hidden>
-  <button class="fr-close" id="frClose" type="button">✕</button>
-  <img id="frZoomImage" src="" alt="Nagyított kép">
+<div class="fr-lightbox" id="frLightbox">
+    <button class="fr-close" id="frClose" aria-label="Bezárás">×</button>
+    <img id="frLightboxImage" src="" alt="Nagyított lábfotó">
 </div>
 
 <script>
-(() => {
-  const slides = [...document.querySelectorAll(".fr-slide")];
-  let current = 0;
+    const plusButton = document.getElementById("frPlus");
+    const photoInput = document.getElementById("frPhotoInput");
+    const uploadForm = document.getElementById("frUploadForm");
 
-  function show(index) {
-    if (!slides.length) return;
+    const feed = document.getElementById("frFeed");
+    const lightbox = document.getElementById("frLightbox");
+    const lightboxImage = document.getElementById("frLightboxImage");
+    const closeButton = document.getElementById("frClose");
 
-    current = Math.max(0, Math.min(index, slides.length - 1));
-
-    slides.forEach((slide, i) => {
-      slide.classList.toggle("active", i === current);
+    // A + gomb megnyitja a fájlválasztót.
+    plusButton.addEventListener("click", () => {
+        photoInput.click();
     });
-  }
 
-  let startX = 0;
-  let startY = 0;
+    // Kép kiválasztása után elindul a feltöltés.
+    photoInput.addEventListener("change", () => {
+        if (photoInput.files.length > 0) {
+            const file = photoInput.files[0];
+            const allowedTypes = [
+                "image/jpeg",
+                "image/png",
+                "image/webp"
+            ];
 
-  const feed = document.getElementById("frFeed");
+            if (!allowedTypes.includes(file.type)) {
+                alert("Kérlek, JPG, PNG vagy WEBP képet válassz!");
+                photoInput.value = "";
+                return;
+            }
 
-  feed.addEventListener("touchstart", event => {
-    if (event.touches.length !== 1) return;
-    startX = event.touches[0].clientX;
-    startY = event.touches[0].clientY;
-  }, { passive: true });
-
-  feed.addEventListener("touchend", event => {
-    if (event.changedTouches.length !== 1) return;
-
-    const dx = event.changedTouches[0].clientX - startX;
-    const dy = event.changedTouches[0].clientY - startY;
-
-    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy)) return;
-
-    show(current + (dx < 0 ? 1 : -1));
-  }, { passive: true });
-
-  document.addEventListener("keydown", event => {
-    const zoom = document.getElementById("frLightbox");
-    if (!zoom.hidden) return;
-
-    if (event.key === "ArrowRight") show(current + 1);
-    if (event.key === "ArrowLeft") show(current - 1);
-  });
-
-  const fileInput = document.getElementById("frFile");
-  const uploadButton = document.getElementById("frUploadButton");
-  const uploadForm = document.getElementById("frUploadForm");
-
-  uploadButton.addEventListener("click", () => fileInput.click());
-
-  fileInput.addEventListener("change", () => {
-    if (fileInput.files.length) uploadForm.requestSubmit();
-  });
-
-  const lightbox = document.getElementById("frLightbox");
-  const zoomImage = document.getElementById("frZoomImage");
-
-  document.querySelectorAll(".fr-image").forEach(img => {
-    img.addEventListener("click", () => {
-      zoomImage.src = img.src;
-      lightbox.hidden = false;
+            uploadForm.requestSubmit();
+        }
     });
-  });
 
-  function closeZoom() {
-    lightbox.hidden = true;
-    zoomImage.src = "";
-  }
+    // Kép nagyítása kattintásra.
+    document.querySelectorAll(".fr-photo").forEach((photo) => {
+        photo.addEventListener("click", () => {
+            lightboxImage.src = photo.src;
+            lightbox.classList.add("open");
+        });
+    });
 
-  document.getElementById("frClose").addEventListener("click", closeZoom);
+    function closeLightbox() {
+        lightbox.classList.remove("open");
+        lightboxImage.src = "";
+    }
 
-  lightbox.addEventListener("click", event => {
-    if (event.target === lightbox) closeZoom();
-  });
+    closeButton.addEventListener("click", closeLightbox);
 
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") closeZoom();
-  });
-})();
+    lightbox.addEventListener("click", (event) => {
+        if (event.target === lightbox) {
+            closeLightbox();
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+            closeLightbox();
+        }
+
+        // Lapozás billentyűzettel.
+        if (
+            !lightbox.classList.contains("open") &&
+            event.key === "ArrowRight"
+        ) {
+            feed.scrollBy({
+                left: feed.clientWidth,
+                behavior: "smooth"
+            });
+        }
+
+        if (
+            !lightbox.classList.contains("open") &&
+            event.key === "ArrowLeft"
+        ) {
+            feed.scrollBy({
+                left: -feed.clientWidth,
+                behavior: "smooth"
+            });
+        }
+    });
 </script>
 {% endblock %}
