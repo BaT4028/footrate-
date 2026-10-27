@@ -1,8 +1,16 @@
+
 {% extends "base.html" %}
 {% block title %}Galéria · FootRate{% endblock %}
+
 {% block content %}
 <div class="topbar">
-  <div>Bejelentkezve: <strong>{{ username }}</strong>{% if admin %} <span class="admin-tag">ADMIN</span>{% endif %}</div>
+  <div>
+    Bejelentkezve: <strong>{{ username }}</strong>
+    {% if admin %}
+      <span class="admin-tag">ADMIN</span>
+    {% endif %}
+  </div>
+
   <form method="post" action="{{ url_for('logout') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button class="secondary" type="submit">Kijelentkezés</button>
@@ -11,57 +19,366 @@
 
 <div class="panel">
   <h2>📸 Saját kép feltöltése</h2>
-  <p class="muted">JPG, PNG vagy WEBP · legfeljebb 5 MB. Mások értékelhetik, te a sajátodat nem.</p>
-  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+  <p class="muted">
+    JPG, PNG vagy WEBP · legfeljebb 5 MB.
+  </p>
+
+  <form method="post" action="{{ url_for('upload') }}"
+        enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+    <input type="file" name="photo"
+           accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+           required>
     <button type="submit">Kép feltöltése</button>
   </form>
 </div>
 
-<h2>🌐 Közös galéria</h2>
+<div class="feed-heading">
+  <h2>🌐 FootRate képfolyam</h2>
+  <p class="muted">Húzd a képet jobbra vagy balra a váltáshoz!</p>
+</div>
+
 {% if photos %}
-<div class="gallery">
+<div class="photo-feed" id="photoFeed">
   {% for photo in photos %}
-  <article class="card">
-    <img src="{{ photo['image_url'] }}" alt="Feltöltötte: {{ photo['username'] }}">
-    <div class="content">
+  <article class="photo-slide"
+           data-photo-id="{{ photo['id'] }}">
+
+    <div class="photo-counter">
+      <span class="slide-number">{{ loop.index }}</span>
+      / {{ photos|length }}
+    </div>
+
+    <div class="photo-frame">
+      <img
+        class="feed-image"
+        src="{{ photo['image_url'] }}"
+        alt="Kép, feltöltötte: {{ photo['username'] }}"
+        loading="{% if loop.first %}eager{% else %}lazy{% endif %}"
+        draggable="false"
+      >
+    </div>
+
+    <div class="photo-info">
       <h3>{{ photo['username'] }}</h3>
-      <div class="score">
-        {% if photo['average'] is not none %}⭐ {{ photo['average'] }}/10{% else %}⭐ Még nincs értékelés{% endif %}
+
+      <div class="reaction-row">
+        <button class="reaction-button"
+                type="button"
+                disabled
+                title="A kedvelés bekötése a következő lépésben történik">
+          ❤️ <span>0</span>
+        </button>
+
+        <button class="reaction-button"
+                type="button"
+                disabled
+                title="A szuperszív bekötése a következő lépésben történik">
+          💜 <span>0</span>
+        </button>
+
+        <button class="comments-button"
+                type="button"
+                disabled
+                title="A kommentek bekötése a következő lépésben történik">
+          💬 Kommentek
+        </button>
       </div>
-      <p class="muted">{{ photo['rating_count'] }} értékelés</p>
+
       {% if photo['user_id'] == session['user_id'] %}
-        <p class="muted">Ez a saját képed — nem értékelheted.</p>
-        <form method="post" action="{{ url_for('delete_photo', photo_id=photo['id']) }}" onsubmit="return confirm('Biztosan törlöd ezt a képet?')">
+        <p class="muted">Ez a saját képed.</p>
+
+        <form method="post"
+              action="{{ url_for('delete_photo', photo_id=photo['id']) }}"
+              onsubmit="return confirm('Biztosan törlöd ezt a képet?')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="danger" type="submit">Saját kép törlése</button>
         </form>
+
       {% elif admin %}
         <p class="muted">Adminisztrátori moderálás</p>
-        <form method="post" action="{{ url_for('delete_photo', photo_id=photo['id']) }}" onsubmit="return confirm('Biztosan törlöd ezt a képet a galériából?')">
+
+        <form method="post"
+              action="{{ url_for('delete_photo', photo_id=photo['id']) }}"
+              onsubmit="return confirm('Biztosan törlöd ezt a képet?')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="danger" type="submit">🛡️ Kép törlése (admin)</button>
-        </form>
-      {% else %}
-        <form method="post" action="{{ url_for('rate', photo_id=photo['id']) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label for="score-{{ photo['id'] }}">Értékelésed</label>
-          <div class="inline">
-            <select id="score-{{ photo['id'] }}" name="score" required>
-              {% for n in range(1, 11) %}
-              <option value="{{ n }}" {% if photo['my_score'] == n %}selected{% endif %}>{{ n }} / 10</option>
-              {% endfor %}
-            </select>
-            <button type="submit">{% if photo['my_score'] is not none %}Módosítás{% else %}Értékelés{% endif %}</button>
-          </div>
         </form>
       {% endif %}
     </div>
   </article>
   {% endfor %}
 </div>
+
+<div class="feed-navigation">
+  <button type="button" id="previousPhoto" class="secondary">
+    ← Előző
+  </button>
+  <span id="feedPosition">1 / {{ photos|length }}</span>
+  <button type="button" id="nextPhoto" class="secondary">
+    Következő →
+  </button>
+</div>
+
+<div class="image-lightbox" id="imageLightbox" hidden>
+  <button type="button" id="closeLightbox"
+          class="lightbox-close" aria-label="Bezárás">✕</button>
+  <img id="lightboxImage" src="" alt="Nagyított kép">
+</div>
+
 {% else %}
-<div class="panel"><p>Még nincs kép. Tölts fel egyet, és hívd meg a többieket!</p></div>
+<div class="panel">
+  <p>Még nincs kép. Tölts fel egyet, és hívd meg a többieket!</p>
+</div>
 {% endif %}
+
+<style>
+.photo-feed {
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  margin: 20px auto;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.photo-slide {
+  display: none;
+  width: 100%;
+  border: 1px solid #333;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #151515;
+}
+
+.photo-slide.active {
+  display: block;
+  animation: photoAppear 0.18s ease-out;
+}
+
+@keyframes photoAppear {
+  from { opacity: 0.65; }
+  to { opacity: 1; }
+}
+
+.photo-counter {
+  padding: 12px 16px;
+  color: #ddd;
+  font-size: 14px;
+}
+
+.photo-frame {
+  width: 100%;
+  height: min(58vh, 580px);
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #080808;
+}
+
+.feed-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  cursor: zoom-in;
+  user-select: none;
+}
+
+.photo-info {
+  padding: 16px;
+}
+
+.photo-info h3 {
+  margin-top: 0;
+}
+
+.reaction-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.reaction-button,
+.comments-button {
+  padding: 9px 12px;
+  border: 1px solid #444;
+  border-radius: 12px;
+  background: #222;
+  color: white;
+}
+
+.reaction-button:disabled,
+.comments-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.feed-navigation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  margin: 20px auto;
+}
+
+.image-lightbox[hidden] {
+  display: none !important;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.94);
+}
+
+.image-lightbox img {
+  max-width: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: 0;
+  border-radius: 50%;
+  padding: 10px 14px;
+  font-size: 20px;
+  background: #222;
+  color: white;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .photo-feed {
+    width: 100%;
+  }
+
+  .photo-slide {
+    border-radius: 12px;
+  }
+
+  .photo-frame {
+    height: 55vh;
+    min-height: 220px;
+  }
+
+  .feed-navigation {
+    gap: 12px;
+  }
+}
+</style>
+
+<script>
+(() => {
+  const slides = Array.from(
+    document.querySelectorAll(".photo-slide")
+  );
+
+  if (!slides.length) return;
+
+  let currentIndex = 0;
+
+  const position = document.getElementById("feedPosition");
+  const previous = document.getElementById("previousPhoto");
+  const next = document.getElementById("nextPhoto");
+  const feed = document.getElementById("photoFeed");
+
+  function showPhoto(index) {
+    currentIndex = Math.max(0, Math.min(index, slides.length - 1));
+
+    slides.forEach((slide, i) => {
+      slide.classList.toggle("active", i === currentIndex);
+      slide.setAttribute(
+        "aria-hidden",
+        i === currentIndex ? "false" : "true"
+      );
+    });
+
+    position.textContent =
+      `${currentIndex + 1} / ${slides.length}`;
+
+    previous.disabled = currentIndex === 0;
+    next.disabled = currentIndex === slides.length - 1;
+  }
+
+  previous.addEventListener("click", () => {
+    showPhoto(currentIndex - 1);
+  });
+
+  next.addEventListener("click", () => {
+    showPhoto(currentIndex + 1);
+  });
+
+  let startX = 0;
+  let startY = 0;
+
+  feed.addEventListener("touchstart", (event) => {
+    if (event.touches.length !== 1) return;
+
+    startX = event.touches[0].clientX;
+    startY = event.touches[0].clientY;
+  }, { passive: true });
+
+  feed.addEventListener("touchend", (event) => {
+    if (event.changedTouches.length !== 1) return;
+
+    const dx = event.changedTouches[0].clientX - startX;
+    const dy = event.changedTouches[0].clientY - startY;
+
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.2) {
+      return;
+    }
+
+    if (dx < 0) {
+      showPhoto(currentIndex + 1);
+    } else {
+      showPhoto(currentIndex - 1);
+    }
+  }, { passive: true });
+
+  const lightbox = document.getElementById("imageLightbox");
+  const lightboxImage = document.getElementById("lightboxImage");
+  const closeLightbox = document.getElementById("closeLightbox");
+
+  document.querySelectorAll(".feed-image").forEach((img) => {
+    img.addEventListener("click", () => {
+      lightboxImage.src = img.src;
+      lightbox.hidden = false;
+    });
+  });
+
+  function closeZoom() {
+    lightbox.hidden = true;
+    lightboxImage.src = "";
+  }
+
+  closeLightbox.addEventListener("click", closeZoom);
+
+  lightbox.addEventListener("click", (event) => {
+    if (event.target === lightbox) closeZoom();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeZoom();
+    if (lightbox.hidden && event.key === "ArrowRight") {
+      showPhoto(currentIndex + 1);
+    }
+    if (lightbox.hidden && event.key === "ArrowLeft") {
+      showPhoto(currentIndex - 1);
+    }
+  });
+
+  showPhoto(0);
+})();
+</script>
 {% endblock %}
