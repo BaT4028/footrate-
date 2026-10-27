@@ -2,7 +2,6 @@
 import os
 import io
 import uuid
-from datetime import datetime
 from functools import wraps
 
 import psycopg
@@ -23,7 +22,18 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FOOTRATE_SECRET_KEY")
 
 if not app.secret_key:
-    raise RuntimeError("Hiányzik a FOOTRATE_SECRET_KEY környezeti változó.")
+    raise RuntimeError("Hiányzik a FOOTRATE_SECRET_KEY.")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
+BUCKET_NAME = "FootPhotos"
+
+if not DATABASE_URL:
+    raise RuntimeError("Hiányzik a DATABASE_URL.")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("Hiányzik a Supabase konfiguráció.")
 
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -33,17 +43,6 @@ app.config["SESSION_COOKIE_SECURE"] = (
 )
 
 csrf = CSRFProtect(app)
-
-DATABASE_URL = os.getenv("DATABASE_URL")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-BUCKET_NAME = "FootPhotos"
-
-if not DATABASE_URL:
-    raise RuntimeError("Hiányzik a DATABASE_URL.")
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Hiányzik a SUPABASE_URL vagy a SUPABASE_KEY.")
-
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
@@ -56,7 +55,7 @@ def connect_db():
 
 
 def init_db():
-    """Csak az új komment- és reakciótáblákat hozza létre."""
+    # A meglévő users, photos és ratings táblákat nem töröljük.
     with connect_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -71,7 +70,6 @@ def init_db():
                     PRIMARY KEY (photo_id, user_id, reaction_type)
                 )
             """)
-
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS comments (
                     id SERIAL PRIMARY KEY,
@@ -83,21 +81,28 @@ def init_db():
                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 )
             """)
-
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_comments_photo
                 ON comments(photo_id, created_at)
             """)
 
 
-def login_required(function):
-    @wraps(function)
+def is_admin():
+    return bool(
+        ADMIN_USERNAME
+        and session.get("username")
+        and session["username"].casefold() == ADMIN_USERNAME.casefold()
+    )
+
+
+def login_required(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if not session.get("user_id"):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify(ok=False, error="Jelentkezz be!"), 401
             return redirect(url_for("login"))
-        return function(*args, **kwargs)
+        return func(*args, **kwargs)
     return wrapper
 
 
@@ -110,10 +115,10 @@ def public_image_url(filename):
     return str(result)
 
 
-def storage_upload(filename, image_bytes):
+def storage_upload(filename, data):
     supabase.storage.from_(BUCKET_NAME).upload(
         path=filename,
-        file=image_bytes,
+        file=data,
         file_options={
             "content-type": "image/jpeg",
             "upsert": "false"
@@ -147,47 +152,33 @@ def wants_json():
 
 @app.route("/")
 def index():
-    photos = []
     user_id = session.get("user_id")
 
     with connect_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT
-                    p.id,
-                    p.user_id,
-                    p.filename,
-                    p.created_at,
-                    u.username,
-                    (
-                        SELECT COUNT(*)
-                        FROM photo_reactions r
+                SELECT p.id, p.user_id, p.filename, p.created_at,
+                       u.username,
+                       (SELECT COUNT(*) FROM photo_reactions r
                         WHERE r.photo_id = p.id
-                          AND r.reaction_type = 'like'
-                    ) AS like_count,
-                    (
-                        SELECT COUNT(*)
-                        FROM photo_reactions r
+                          AND r.reaction_type = 'like') AS like_count,
+                       (SELECT COUNT(*) FROM photo_reactions r
                         WHERE r.photo_id = p.id
-                          AND r.reaction_type = 'superheart'
-                    ) AS superheart_count,
-                    EXISTS (
-                        SELECT 1 FROM photo_reactions r
-                        WHERE r.photo_id = p.id
-                          AND r.user_id = %s
-                          AND r.reaction_type = 'like'
-                    ) AS my_like,
-                    EXISTS (
-                        SELECT 1 FROM photo_reactions r
-                        WHERE r.photo_id = p.id
-                          AND r.user_id = %s
-                          AND r.reaction_type = 'superheart'
-                    ) AS my_superheart
+                          AND r.reaction_type = 'superheart') AS superheart_count,
+                       EXISTS (
+                           SELECT 1 FROM photo_reactions r
+                           WHERE r.photo_id = p.id AND r.user_id = %s
+                             AND r.reaction_type = 'like'
+                       ) AS my_like,
+                       EXISTS (
+                           SELECT 1 FROM photo_reactions r
+                           WHERE r.photo_id = p.id AND r.user_id = %s
+                             AND r.reaction_type = 'superheart'
+                       ) AS my_superheart
                 FROM photos p
                 JOIN users u ON u.id = p.user_id
                 ORDER BY p.created_at DESC, p.id DESC
             """, (user_id or -1, user_id or -1))
-
             photos = cur.fetchall()
 
     for photo in photos:
@@ -197,7 +188,8 @@ def index():
         "index.html",
         photos=photos,
         username=session.get("username"),
-        user_id=user_id
+        user_id=user_id,
+        admin=is_admin()
     )
 
 
@@ -246,8 +238,7 @@ def login():
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT id, username, password_hash
-                    FROM users
-                    WHERE username = %s
+                    FROM users WHERE username = %s
                 """, (username,))
                 user = cur.fetchone()
 
@@ -275,62 +266,51 @@ def logout():
 @login_required
 def upload():
     uploaded = request.files.get("photo")
-
     if not uploaded or not uploaded.filename:
         flash("Válassz ki egy képet!")
         return redirect(url_for("index"))
 
     try:
-        raw_bytes = uploaded.read()
+        raw = uploaded.read()
+        if not raw:
+            raise ValueError("Üres fájl.")
 
-        if not raw_bytes:
-            flash("A fájl üres.")
-            return redirect(url_for("index"))
-
-        # Kép ellenőrzése, EXIF-tájolás helyes kezelése.
-        with Image.open(io.BytesIO(raw_bytes)) as original:
+        with Image.open(io.BytesIO(raw)) as original:
             if original.format not in ("JPEG", "PNG", "WEBP"):
-                flash("Csak JPG, PNG vagy WEBP képet tölthetsz fel.")
-                return redirect(url_for("index"))
+                raise ValueError("Csak JPG, PNG vagy WEBP kép tölthető fel.")
 
             image = ImageOps.exif_transpose(original)
             image.load()
 
-            # Kizárólag álló képet engedélyezünk.
             if image.height <= image.width:
-                flash("Csak álló képet tölthetsz fel!")
-                return redirect(url_for("index"))
+                raise ValueError("Csak álló képet tölthetsz fel!")
 
-            # Egységes JPEG-formátum, helyes tájolással.
             image = image.convert("RGB")
             output = io.BytesIO()
             image.save(output, format="JPEG", quality=92, optimize=True)
             image_bytes = output.getvalue()
 
-    except (UnidentifiedImageError, OSError, ValueError):
-        flash("Ez a fájl nem érvényes kép.")
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        flash(str(exc) or "Érvénytelen kép.")
         return redirect(url_for("index"))
 
     filename = f"{uuid.uuid4().hex}.jpg"
 
     try:
         storage_upload(filename, image_bytes)
-
         with connect_db() as conn:
             with conn.cursor() as cur:
                 cur.execute("""
                     INSERT INTO photos (user_id, filename)
                     VALUES (%s, %s)
                 """, (session["user_id"], filename))
-
     except Exception:
+        app.logger.exception("Képfeltöltési hiba")
         try:
             storage_delete(filename)
         except Exception:
-            pass
-
-        app.logger.exception("Képfeltöltési hiba")
-        flash("A képfeltöltés nem sikerült. Próbáld újra!")
+            app.logger.exception("A feltöltött fájl takarítása sikertelen")
+        flash("A képfeltöltés nem sikerült.")
         return redirect(url_for("index"))
 
     flash("A kép sikeresen feltöltve.")
@@ -343,8 +323,7 @@ def react(photo_id, reaction_type):
     if reaction_type not in ("like", "superheart"):
         return jsonify(ok=False, error="Ismeretlen reakció."), 400
 
-    photo = get_photo(photo_id)
-    if not photo:
+    if not get_photo(photo_id):
         return jsonify(ok=False, error="A kép nem található."), 404
 
     user_id = session["user_id"]
@@ -354,18 +333,14 @@ def react(photo_id, reaction_type):
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT 1 FROM photo_reactions
-                    WHERE photo_id = %s
-                      AND user_id = %s
-                      AND reaction_type = %s
+                    WHERE photo_id=%s AND user_id=%s AND reaction_type=%s
                 """, (photo_id, user_id, reaction_type))
-                exists = cur.fetchone() is not None
+                active_before = cur.fetchone() is not None
 
-                if exists:
+                if active_before:
                     cur.execute("""
                         DELETE FROM photo_reactions
-                        WHERE photo_id = %s
-                          AND user_id = %s
-                          AND reaction_type = %s
+                        WHERE photo_id=%s AND user_id=%s AND reaction_type=%s
                     """, (photo_id, user_id, reaction_type))
                     active = False
                 else:
@@ -378,26 +353,21 @@ def react(photo_id, reaction_type):
                     active = True
 
                 cur.execute("""
-                    SELECT COUNT(*) AS total
-                    FROM photo_reactions
-                    WHERE photo_id = %s AND reaction_type = %s
+                    SELECT COUNT(*) AS total FROM photo_reactions
+                    WHERE photo_id=%s AND reaction_type=%s
                 """, (photo_id, reaction_type))
                 count = cur.fetchone()["total"]
 
         return jsonify(
-            ok=True,
-            active=active,
-            count=count,
-            photo_id=photo_id,
-            reaction_type=reaction_type
+            ok=True, active=active, count=count,
+            photo_id=photo_id, reaction_type=reaction_type
         )
-
     except Exception:
         app.logger.exception("Reakciós hiba")
         return jsonify(ok=False, error="A reakció mentése nem sikerült."), 500
 
 
-@app.route("/comments/<int:photo_id>", methods=["GET"])
+@app.route("/comments/<int:photo_id>")
 @login_required
 def get_comments(photo_id):
     if not get_photo(photo_id):
@@ -407,21 +377,17 @@ def get_comments(photo_id):
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT c.id, c.body, c.created_at, u.username
-                FROM comments c
-                JOIN users u ON u.id = c.user_id
-                WHERE c.photo_id = %s
-                ORDER BY c.created_at ASC, c.id ASC
+                FROM comments c JOIN users u ON u.id = c.user_id
+                WHERE c.photo_id=%s ORDER BY c.created_at, c.id
             """, (photo_id,))
             rows = cur.fetchall()
 
-    comments = [{
+    return jsonify(comments=[{
         "id": row["id"],
         "username": row["username"],
         "body": row["body"],
         "created_at": row["created_at"].isoformat()
-    } for row in rows]
-
-    return jsonify(comments=comments)
+    } for row in rows])
 
 
 @app.route("/comment/<int:photo_id>", methods=["POST"])
@@ -433,11 +399,10 @@ def add_comment(photo_id):
     data = request.get_json(silent=True) or {}
     body = data.get("body", "").strip()
 
-    if not body:
-        return jsonify(ok=False, error="A komment nem lehet üres."), 400
-
-    if len(body) > 500:
-        return jsonify(ok=False, error="Legfeljebb 500 karakter írható."), 400
+    if not body or len(body) > 500:
+        return jsonify(
+            ok=False, error="A komment 1–500 karakter hosszú lehet."
+        ), 400
 
     with connect_db() as conn:
         with conn.cursor() as cur:
@@ -446,17 +411,14 @@ def add_comment(photo_id):
                 VALUES (%s, %s, %s)
                 RETURNING id, body, created_at
             """, (photo_id, session["user_id"], body))
-            comment = cur.fetchone()
+            row = cur.fetchone()
 
-    return jsonify(
-        ok=True,
-        comment={
-            "id": comment["id"],
-            "username": session["username"],
-            "body": comment["body"],
-            "created_at": comment["created_at"].isoformat()
-        }
-    )
+    return jsonify(ok=True, comment={
+        "id": row["id"],
+        "username": session["username"],
+        "body": row["body"],
+        "created_at": row["created_at"].isoformat()
+    })
 
 
 @app.route("/delete/<int:photo_id>", methods=["POST"])
@@ -465,33 +427,26 @@ def delete_photo(photo_id):
     photo = get_photo(photo_id)
 
     if not photo:
-        if wants_json():
-            return jsonify(ok=False, error="A kép nem található."), 404
-        abort(404)
+        return jsonify(ok=False, error="A kép nem található."), 404
 
-    if photo["user_id"] != session["user_id"]:
-        if wants_json():
-            return jsonify(ok=False, error="Csak a saját képedet törölheted."), 403
-        abort(403)
+    # Admin bármelyik képet törölheti; más csak a sajátját.
+    if photo["user_id"] != session["user_id"] and not is_admin():
+        return jsonify(
+            ok=False, error="Csak a saját képedet törölheted."
+        ), 403
 
     try:
-        # Az adatbázisból törlünk; a kapcsolódó kommentek és reakciók
-        # a CASCADE szabály miatt szintén törlődnek.
         with connect_db() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM photos WHERE id = %s AND user_id = %s",
-                    (photo_id, session["user_id"])
-                )
+                cur.execute("DELETE FROM photos WHERE id=%s", (photo_id,))
 
         try:
             storage_delete(photo["filename"])
         except Exception:
-            app.logger.exception("A kép tárhelyről való törlése sikertelen")
+            app.logger.exception("A fájl tárhelyről való törlése sikertelen")
 
         if wants_json():
             return jsonify(ok=True)
-
         return redirect(url_for("index"))
 
     except Exception:
