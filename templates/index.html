@@ -1,392 +1,288 @@
 
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>FootRate</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>FootRate</title>
 
-    <style>
-        :root {
-            color-scheme: dark;
-            --bg: #09090d;
-            --card: #15151d;
-            --purple: #8b5cf6;
-            --pink: #ec4899;
-            --text: #f5f3ff;
-            --muted: #a1a1aa;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font-family: Arial, sans-serif;
-        }
-
-        header {
-            height: 58px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 16px;
-            border-bottom: 1px solid #272330;
-            background: rgba(9, 9, 13, .96);
-            position: sticky;
-            top: 0;
-            z-index: 5;
-        }
-
-        .logo {
-            font-size: 21px;
-            font-weight: 800;
-            color: #c4a5ff;
-            letter-spacing: -.5px;
-        }
-
-        header a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 13px;
-        }
-
-        main {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 12px 0 100px;
-        }
-
-        .notice {
-            margin: 10px 12px 18px;
-            padding: 12px;
-            border: 1px solid #49306c;
-            border-radius: 12px;
-            background: #171020;
-            color: #d8bfff;
-            text-align: center;
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .flash {
-            margin: 10px 12px;
-            padding: 12px;
-            border-radius: 10px;
-            background: #241735;
-            color: #e9d5ff;
-            overflow-wrap: anywhere;
-        }
-
-        .feed {
-            display: flex;
-            flex-direction: column;
-            gap: 22px;
-        }
-
-        .post {
-            background: var(--card);
-            border-top: 1px solid #282330;
-            border-bottom: 1px solid #282330;
-        }
-
-        .post-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 14px;
-        }
-
-        .username {
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .date {
-            display: block;
-            margin-top: 4px;
-            color: var(--muted);
-            font-size: 11px;
-        }
-
-        .menu-wrap {
-            position: relative;
-        }
-
-        .menu-button {
-            border: 0;
-            background: transparent;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 2px 8px;
-        }
-
-        .menu {
-            display: none;
-            position: absolute;
-            right: 0;
-            top: 32px;
-            z-index: 4;
-            background: #24212c;
-            border: 1px solid #40354e;
-            border-radius: 10px;
-            min-width: 130px;
-            overflow: hidden;
-        }
-
-        .menu.open {
-            display: block;
-        }
-
-        .menu button {
-            width: 100%;
-            padding: 12px;
-            border: 0;
-            background: transparent;
-            color: #ff9b9b;
-            text-align: left;
-            cursor: pointer;
-        }
-
-        .photo {
-            width: 100%;
-            background: #050507;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            cursor: zoom-in;
-        }
-
-        .photo img {
-            display: block;
-            width: auto;
-            max-width: 100%;
-            height: auto;
-            max-height: 78vh;
-            object-fit: contain;
-        }
-
-        .actions {
-            display: flex;
-            align-items: stretch;
-            gap: 12px;
-            padding: 12px 14px 14px;
-        }
-
-        .reaction {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: 5px;
-            padding: 8px 4px;
-            border: 1px solid #322a3d;
-            border-radius: 12px;
-            background: #1c1925;
-            color: white;
-            cursor: pointer;
-            transition: background .15s, transform .15s;
-        }
-
-        .reaction:hover {
-            background: #2a2039;
-            transform: translateY(-1px);
-        }
-
-        .reaction.active {
-            border-color: var(--purple);
-            background: #302044;
-        }
-
-        .reaction.super.active {
-            border-color: var(--pink);
-            background: #3b1d35;
-        }
-
-        .heart {
-            font-size: 25px;
-            line-height: 1.1;
-        }
-
-        .reaction-label {
-            font-size: 12px;
-            font-weight: 700;
-        }
-
-        .reaction-count {
-            color: #c4b5fd;
-            font-size: 12px;
-        }
-
-        .super .reaction-count {
-            color: #f9a8d4;
-        }
-
-        .empty {
-            padding: 70px 20px;
-            text-align: center;
-            color: var(--muted);
-            line-height: 1.7;
-        }
-
-        .upload-fab {
-            position: fixed;
-            z-index: 10;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            border: 0;
-            color: white;
-            background: linear-gradient(135deg, #a855f7, #ec4899);
-            font-size: 36px;
-            line-height: 1;
-            cursor: pointer;
-            box-shadow: 0 6px 30px #8b5cf666;
-        }
-
-        .upload-fab:disabled {
-            opacity: .6;
-        }
-
-        .upload-help {
-            position: fixed;
-            z-index: 9;
-            bottom: 91px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 7px 12px;
-            border-radius: 9px;
-            background: #21192b;
-            border: 1px solid #49306c;
-            color: #e9d5ff;
-            white-space: nowrap;
-            font-size: 11px;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 20;
-            background: rgba(0, 0, 0, .92);
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-        }
-
-        .modal.open {
-            display: flex;
-        }
-
-        .modal-panel {
-            position: relative;
-            width: min(100%, 580px);
-            max-height: 94vh;
-            overflow-y: auto;
-            background: #15151d;
-            border: 1px solid #33283f;
-            border-radius: 16px;
-            padding: 14px;
-        }
-
-        .modal-image {
-            display: block;
-            max-width: 100%;
-            max-height: 55vh;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            margin: 0 auto 12px;
-        }
-
-        .close-modal {
-            position: sticky;
-            top: 0;
-            float: right;
-            border: 0;
-            background: #30243b;
-            color: white;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .comment-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin: 12px 0;
-        }
-
-        .comment {
-            padding: 10px;
-            background: #201d28;
-            border-radius: 10px;
-            overflow-wrap: anywhere;
-        }
-
-        .comment strong {
-            display: block;
-            font-size: 12px;
-            color: #c4b5fd;
-            margin-bottom: 4px;
-        }
-
-        .comment-form {
-            display: flex;
-            gap: 8px;
-        }
-
-        .comment-form input {
-            min-width: 0;
-            flex: 1;
-            padding: 12px;
-            border: 1px solid #40354e;
-            border-radius: 10px;
-            background: #0f0e14;
-            color: white;
-        }
-
-        .comment-form button {
-            padding: 0 14px;
-            border: 0;
-            border-radius: 10px;
-            background: var(--purple);
-            color: white;
-            cursor: pointer;
-        }
-
-        .status {
-            min-height: 18px;
-            padding: 6px 0;
-            color: #d8bfff;
-            font-size: 12px;
-        }
-
-        @media (min-width: 650px) {
-            main {
-                padding-top: 22px;
-            }
-
-            .post {
-                border: 1px solid #282330;
-                border-radius: 15px;
-                overflow: hidden;
-            }
-        }
-    </style>
+<style>
+:root {
+    color-scheme: dark;
+    --bg: #09090d;
+    --card: #15151d;
+    --purple: #8b5cf6;
+    --pink: #ec4899;
+    --text: #f5f3ff;
+    --muted: #a1a1aa;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, sans-serif;
+}
+header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: 58px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #09090df5;
+    border-bottom: 1px solid #272330;
+}
+.logo { font-size: 21px; font-weight: 800; color: #c4a5ff; }
+header a { color: #c4b5fd; text-decoration: none; font-size: 13px; }
+main { max-width: 850px; margin: auto; padding: 12px 0 100px; }
+.notice {
+    margin: 8px 10px 16px;
+    padding: 12px;
+    border: 1px solid #49306c;
+    border-radius: 12px;
+    background: #171020;
+    color: #d8bfff;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.flash {
+    margin: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    background: #241735;
+    overflow-wrap: anywhere;
+}
+.feed {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 8px;
+    align-items: start;
+}
+.post {
+    min-width: 0;
+    background: var(--card);
+    border: 1px solid #282330;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.post-head {
+    min-width: 0;
+    padding: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+.username {
+    font-weight: 700;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+.date { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.menu-wrap { position: relative; flex-shrink: 0; }
+.menu-button {
+    border: 0;
+    background: transparent;
+    color: white;
+    font-size: 23px;
+    cursor: pointer;
+}
+.menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 30px;
+    z-index: 4;
+    min-width: 125px;
+    background: #24212c;
+    border: 1px solid #40354e;
+    border-radius: 9px;
+    overflow: hidden;
+}
+.menu.open { display: block; }
+.menu button {
+    width: 100%;
+    padding: 12px;
+    border: 0;
+    background: transparent;
+    color: #ff9b9b;
+    text-align: left;
+    cursor: pointer;
+}
+.photo {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    background: #050507;
+    cursor: zoom-in;
+}
+.photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px;
+}
+.reaction {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 3px;
+    border: 1px solid #322a3d;
+    border-radius: 10px;
+    background: #1c1925;
+    color: white;
+    cursor: pointer;
+}
+.reaction.active { border-color: var(--purple); background: #302044; }
+.reaction.super.active { border-color: var(--pink); background: #3b1d35; }
+.reaction:disabled { opacity: .6; }
+.heart { font-size: 23px; line-height: 1.1; }
+.reaction-label { font-size: 11px; font-weight: 700; text-align: center; }
+.reaction-count { font-size: 12px; color: #c4b5fd; }
+.super .reaction-count { color: #f9a8d4; }
+.comments-button {
+    margin: 0 8px 10px;
+    border: 0;
+    background: transparent;
+    color: #c4b5fd;
+    font-size: 11px;
+    cursor: pointer;
+}
+.empty {
+    grid-column: 1 / -1;
+    padding: 60px 15px;
+    text-align: center;
+    color: var(--muted);
+    line-height: 1.7;
+}
+.upload-fab {
+    position: fixed;
+    z-index: 10;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 58px;
+    height: 58px;
+    border: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    color: white;
+    font-size: 36px;
+    cursor: pointer;
+    box-shadow: 0 6px 30px #8b5cf666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+.upload-help {
+    position: fixed;
+    bottom: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9;
+    padding: 7px 10px;
+    border: 1px solid #49306c;
+    border-radius: 8px;
+    background: #21192b;
+    color: #e9d5ff;
+    white-space: nowrap;
+    font-size: 11px;
+}
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: #000e;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+}
+.modal.open { display: flex; }
+.modal-panel {
+    position: relative;
+    width: min(100%, 580px);
+    max-height: 94vh;
+    overflow-y: auto;
+    background: #15151d;
+    border: 1px solid #33283f;
+    border-radius: 14px;
+    padding: 12px;
+}
+.modal-image {
+    display: block;
+    max-width: 100%;
+    max-height: 48vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin: 0 auto 12px;
+}
+.close-modal {
+    display: block;
+    margin-left: auto;
+    border: 0;
+    background: #30243b;
+    color: white;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 20px;
+    cursor: pointer;
+}
+.comment-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.comment {
+    padding: 10px;
+    background: #201d28;
+    border-radius: 9px;
+    overflow-wrap: anywhere;
+}
+.comment strong { display: block; color: #c4b5fd; font-size: 12px; margin-bottom: 4px; }
+.comment-form { display: flex; gap: 7px; }
+.comment-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid #40354e;
+    border-radius: 9px;
+    background: #0f0e14;
+    color: white;
+}
+.comment-form button {
+    padding: 0 12px;
+    border: 0;
+    border-radius: 9px;
+    background: var(--purple);
+    color: white;
+    cursor: pointer;
+}
+.status { min-height: 18px; padding-top: 6px; color: #d8bfff; font-size: 12px; }
+@media (min-width: 650px) {
+    .feed { gap: 14px; }
+    .post-head { padding: 12px; }
+    .username { font-size: 14px; }
+    .reaction-label { font-size: 12px; }
+}
+</style>
 </head>
 
 <body>
@@ -394,20 +290,20 @@
     <div class="logo">FootRate</div>
     <div>
         {% if username %}
-            <span style="font-size:12px;color:#c4b5fd;margin-right:10px">
-                {{ username }}
+            <span style="font-size:12px;color:#c4b5fd;margin-right:8px">
+                {{ username }}{% if admin %} · ADMIN{% endif %}
             </span>
-            <a href="{{ url_for('logout') }}">Kilépés</a>
+            <a href="{{ url_for('logout') }}">Log out</a>
         {% else %}
-            <a href="{{ url_for('login') }}">Bejelentkezés</a>
+            <a href="{{ url_for('login') }}">Log in</a>
         {% endif %}
     </div>
 </header>
 
 <main>
     <div class="notice">
-        Kérlek, erre a weboldalra kizárólag lábakról készült képeket tölts fel!
-        Csak álló képet lehet feltölteni.
+        Please upload only appropriate foot-related images to this website.
+        Only portrait images are allowed.
     </div>
 
     {% with messages = get_flashed_messages() %}
@@ -418,336 +314,291 @@
 
     <section class="feed">
         {% for photo in photos %}
-            <article class="post" id="post-{{ photo.id }}">
-                <div class="post-head">
-                    <div>
-                        <div class="username">{{ photo.username }}</div>
-                        <span class="date">
-                            {{ photo.created_at.strftime('%Y-%m-%d %H:%M') if photo.created_at else '' }}
-                        </span>
+        <article class="post" id="post-{{ photo.id }}">
+            <div class="post-head">
+                <div>
+                    <div class="username">{{ photo.username }}</div>
+                    <span class="date">
+                        {{ photo.created_at.strftime('%Y-%m-%d %H:%M') if photo.created_at else '' }}
+                    </span>
+                </div>
+
+                {% if user_id and (photo.user_id == user_id or admin) %}
+                <div class="menu-wrap">
+                    <button class="menu-button" type="button"
+                            aria-label="Image options"
+                            onclick="toggleMenu({{ photo.id }})">⋯</button>
+                    <div class="menu" id="menu-{{ photo.id }}">
+                        <button type="button"
+                                onclick="deletePhoto({{ photo.id }})">
+                            Delete image
+                        </button>
                     </div>
-
-                    {% if user_id and photo.user_id == user_id %}
-                        <div class="menu-wrap">
-                            <button class="menu-button" type="button"
-                                    aria-label="Beállítások"
-                                    onclick="toggleMenu({{ photo.id }})">⋯</button>
-                            <div class="menu" id="menu-{{ photo.id }}">
-                                <button type="button"
-                                        onclick="deletePhoto({{ photo.id }})">
-                                    Kép törlése
-                                </button>
-                            </div>
-                        </div>
-                    {% endif %}
                 </div>
-
-                <div class="photo"
-                     onclick="openImage({{ photo.id }}, {{ photo.image_url|tojson }})">
-                    <img src="{{ photo.image_url }}"
-                         alt="Feltöltött álló kép"
-                         loading="lazy">
-                </div>
-
-                <div class="actions">
-                    <button type="button"
-                            class="reaction {{ 'active' if photo.my_like else '' }}"
-                            id="like-button-{{ photo.id }}"
-                            onclick="react({{ photo.id }}, 'like')">
-                        <span class="heart">❤️</span>
-                        <span class="reaction-label">Kedvelés</span>
-                        <span class="reaction-count" id="like-count-{{ photo.id }}">
-                            {{ photo.like_count }}
-                        </span>
-                    </button>
-
-                    <button type="button"
-                            class="reaction super {{ 'active' if photo.my_superheart else '' }}"
-                            id="super-button-{{ photo.id }}"
-                            onclick="react({{ photo.id }}, 'superheart')">
-                        <span class="heart">💖</span>
-                        <span class="reaction-label">Szuperkedvelés</span>
-                        <span class="reaction-count" id="super-count-{{ photo.id }}">
-                            {{ photo.superheart_count }}
-                        </span>
-                    </button>
-                </div>
-
-                <div style="padding:0 14px 14px">
-                    <button type="button"
-                            onclick="openComments({{ photo.id }}, {{ photo.image_url|tojson }})"
-                            style="border:0;background:transparent;color:#c4b5fd;cursor:pointer">
-                        💬 Kommentek
-                    </button>
-                </div>
-            </article>
-        {% else %}
-            <div class="empty">
-                Még nincs feltöltött kép.<br>
-                A lenti <strong>+</strong> gombbal tölthetsz fel egy álló képet.
+                {% endif %}
             </div>
+
+            <div class="photo" onclick="openImage({{ photo.image_url|tojson }})">
+                <img src="{{ photo.image_url }}"
+                     alt="Uploaded image" loading="lazy">
+            </div>
+
+            <div class="actions">
+                <button type="button"
+                        class="reaction {{ 'active' if photo.my_like else '' }}"
+                        id="like-button-{{ photo.id }}"
+                        onclick="react({{ photo.id }}, 'like')">
+                    <span class="heart">❤️</span>
+                    <span class="reaction-label">Like</span>
+                    <span class="reaction-count" id="like-count-{{ photo.id }}">{{ photo.like_count }}</span>
+                </button>
+
+                <button type="button"
+                        class="reaction super {{ 'active' if photo.my_superheart else '' }}"
+                        id="super-button-{{ photo.id }}"
+                        onclick="react({{ photo.id }}, 'superheart')">
+                    <span class="heart">💖</span>
+                    <span class="reaction-label">Super Like</span>
+                    <span class="reaction-count" id="super-count-{{ photo.id }}">{{ photo.superheart_count }}</span>
+                </button>
+            </div>
+
+            <button class="comments-button" type="button"
+                    onclick="openComments({{ photo.id }}, {{ photo.image_url|tojson }})">
+                💬 Comments
+            </button>
+        </article>
+        {% else %}
+        <div class="empty">
+            No images have been uploaded yet.<br>
+            Use the + button below to upload a portrait image.
+        </div>
         {% endfor %}
     </section>
 </main>
 
 {% if user_id %}
-    <div class="upload-help">Csak álló kép · maximum 5 MB</div>
-    <button class="upload-fab" type="button"
-            onclick="document.getElementById('photo-input').click()">+</button>
-
-    <form id="upload-form" action="{{ url_for('upload') }}"
-          method="POST" enctype="multipart/form-data" hidden>
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input id="photo-input" type="file" name="photo"
-               accept="image/jpeg,image/png,image/webp">
-    </form>
+<div class="upload-help">Portrait images only · Maximum 5 MB</div>
+<button class="upload-fab" type="button"
+        onclick="document.getElementById('photo-input').click()">+</button>
+<form id="upload-form" action="{{ url_for('upload') }}"
+      method="POST" enctype="multipart/form-data" hidden>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input id="photo-input" type="file" name="photo"
+           accept="image/jpeg,image/png,image/webp">
+</form>
 {% else %}
-    <a href="{{ url_for('login') }}" class="upload-fab"
-       style="display:flex;align-items:center;justify-content:center;text-decoration:none">+</a>
+<a href="{{ url_for('login') }}" class="upload-fab">+</a>
 {% endif %}
 
 <div class="modal" id="image-modal" onclick="closeModal(event)">
     <div class="modal-panel" onclick="event.stopPropagation()">
         <button class="close-modal" type="button"
-                onclick="hideModal()" aria-label="Bezárás">×</button>
-        <img id="modal-image" class="modal-image" src="" alt="Nagyított kép">
-        <div id="comment-area" hidden>
-            <h3>Kommentek</h3>
+                onclick="hideModal()">×</button>
+        <img id="modal-image" class="modal-image" src="" alt="Full-size image">
+        <section id="comment-area" hidden>
+            <h3>Comments</h3>
             <div id="comment-list" class="comment-list"></div>
             {% if user_id %}
-                <form class="comment-form" id="comment-form">
-                    <input id="comment-input" maxlength="500"
-                           placeholder="Írj egy kommentet..." required>
-                    <button type="submit">Küldés</button>
-                </form>
+            <form class="comment-form" id="comment-form">
+                <input id="comment-input" maxlength="500"
+                       placeholder="Write a comment..." required>
+                <button type="submit">Send</button>
+            </form>
             {% endif %}
             <div id="comment-status" class="status"></div>
-        </div>
+        </section>
     </div>
 </div>
 
 <script>
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    let currentCommentPhoto = null;
+const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+let currentCommentPhoto = null;
 
-    async function postJSON(url, data = null) {
-        const headers = {
-            "X-CSRFToken": csrfToken,
-            "X-Requested-With": "XMLHttpRequest",
-            "Accept": "application/json"
-        };
+async function postJSON(url, data = null) {
+    const headers = {
+        "X-CSRFToken": csrfToken,
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+    };
+    const options = { method: "POST", headers };
 
-        const options = {
-            method: "POST",
-            headers
-        };
-
-        if (data !== null) {
-            headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(data);
-        }
-
-        const response = await fetch(url, options);
-        const result = await response.json().catch(() => ({}));
-
-        if (!response.ok || result.ok === false) {
-            throw new Error(result.error || "A művelet nem sikerült.");
-        }
-
-        return result;
+    if (data !== null) {
+        headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(data);
     }
 
-    async function react(photoId, reactionType) {
-        const buttonId = reactionType === "like"
-            ? `like-button-${photoId}`
-            : `super-button-${photoId}`;
+    const response = await fetch(url, options);
+    const result = await response.json().catch(() => ({}));
 
-        const countId = reactionType === "like"
-            ? `like-count-${photoId}`
-            : `super-count-${photoId}`;
-
-        const button = document.getElementById(buttonId);
-        button.disabled = true;
-
-        try {
-            const result = await postJSON(
-                `/react/${photoId}/${reactionType}`
-            );
-
-            document.getElementById(countId).textContent = result.count;
-            button.classList.toggle("active", result.active);
-        } catch (error) {
-            alert(error.message);
-        } finally {
-            button.disabled = false;
-        }
+    if (!response.ok || result.ok === false) {
+        throw new Error(result.error || "The operation failed.");
     }
+    return result;
+}
 
-    function toggleMenu(photoId) {
-        document.querySelectorAll(".menu").forEach(menu => {
-            if (menu.id !== `menu-${photoId}`) {
-                menu.classList.remove("open");
-            }
-        });
+async function react(photoId, type) {
+    const prefix = type === "like" ? "like" : "super";
+    const button = document.getElementById(`${prefix}-button-${photoId}`);
+    const count = document.getElementById(`${prefix}-count-${photoId}`);
+    button.disabled = true;
 
-        document.getElementById(`menu-${photoId}`).classList.toggle("open");
+    try {
+        const result = await postJSON(`/react/${photoId}/${type}`);
+        count.textContent = result.count;
+        button.classList.toggle("active", result.active);
+    } catch (error) {
+        alert(error.message);
+    } finally {
+        button.disabled = false;
     }
+}
 
-    document.addEventListener("click", event => {
-        if (!event.target.closest(".menu-wrap")) {
-            document.querySelectorAll(".menu").forEach(menu => {
-                menu.classList.remove("open");
-            });
-        }
+function toggleMenu(id) {
+    document.querySelectorAll(".menu").forEach(menu => {
+        if (menu.id !== `menu-${id}`) menu.classList.remove("open");
     });
+    document.getElementById(`menu-${id}`).classList.toggle("open");
+}
 
-    async function deletePhoto(photoId) {
-        if (!confirm("Biztosan törlöd ezt a képet?")) return;
+document.addEventListener("click", event => {
+    if (!event.target.closest(".menu-wrap")) {
+        document.querySelectorAll(".menu").forEach(m => m.classList.remove("open"));
+    }
+});
 
-        try {
-            await postJSON(`/delete/${photoId}`);
-            document.getElementById(`post-${photoId}`)?.remove();
-        } catch (error) {
-            alert(error.message);
+async function deletePhoto(id) {
+    if (!confirm("Are you sure you want to delete this image?")) return;
+    try {
+        await postJSON(`/delete/${id}`);
+        document.getElementById(`post-${id}`)?.remove();
+    } catch (error) {
+        alert(error.message);
+    }
+}
+
+function showModal() {
+    document.getElementById("image-modal").classList.add("open");
+    document.body.style.overflow = "hidden";
+}
+
+function hideModal() {
+    document.getElementById("image-modal").classList.remove("open");
+    document.body.style.overflow = "";
+    currentCommentPhoto = null;
+}
+
+function closeModal(event) {
+    if (event.target.id === "image-modal") hideModal();
+}
+
+function openImage(url) {
+    document.getElementById("modal-image").src = url;
+    document.getElementById("comment-area").hidden = true;
+    showModal();
+}
+
+async function openComments(id, url) {
+    currentCommentPhoto = id;
+    document.getElementById("modal-image").src = url;
+    document.getElementById("comment-area").hidden = false;
+    document.getElementById("comment-list").replaceChildren();
+    document.getElementById("comment-status").textContent = "Loading...";
+    showModal();
+
+    try {
+        const response = await fetch(`/comments/${id}`, {
+            headers: { "Accept": "application/json" }
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load comments.");
+
+        const list = document.getElementById("comment-list");
+        list.replaceChildren();
+
+        if (!data.comments.length) {
+            const empty = document.createElement("p");
+            empty.textContent = "No comments yet.";
+            list.appendChild(empty);
         }
-    }
 
-    function showModal() {
-        document.getElementById("image-modal").classList.add("open");
-        document.body.style.overflow = "hidden";
+        data.comments.forEach(comment => {
+            const item = document.createElement("div");
+            item.className = "comment";
+            const name = document.createElement("strong");
+            name.textContent = comment.username;
+            const body = document.createElement("div");
+            body.textContent = comment.body;
+            item.append(name, body);
+            list.appendChild(item);
+        });
+        document.getElementById("comment-status").textContent = "";
+    } catch (error) {
+        document.getElementById("comment-status").textContent = error.message;
     }
+}
 
-    function hideModal() {
-        document.getElementById("image-modal").classList.remove("open");
-        document.body.style.overflow = "";
-        currentCommentPhoto = null;
-    }
+const commentForm = document.getElementById("comment-form");
+if (commentForm) {
+    commentForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!currentCommentPhoto) return;
 
-    function closeModal(event) {
-        if (event.target.id === "image-modal") hideModal();
-    }
-
-    function openImage(photoId, imageUrl) {
-        document.getElementById("modal-image").src = imageUrl;
-        document.getElementById("comment-area").hidden = true;
-        showModal();
-    }
-
-    async function openComments(photoId, imageUrl) {
-        currentCommentPhoto = photoId;
-        document.getElementById("modal-image").src = imageUrl;
-        document.getElementById("comment-area").hidden = false;
-        document.getElementById("comment-list").replaceChildren();
-        document.getElementById("comment-status").textContent = "Betöltés...";
-        showModal();
+        const input = document.getElementById("comment-input");
+        const body = input.value.trim();
+        if (!body) return;
 
         try {
-            const response = await fetch(`/comments/${photoId}`, {
-                headers: { "Accept": "application/json" }
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Nem sikerült betölteni.");
-
-            const list = document.getElementById("comment-list");
-            list.replaceChildren();
-
-            if (!data.comments.length) {
-                const empty = document.createElement("p");
-                empty.textContent = "Még nincs komment.";
-                empty.style.color = "#a1a1aa";
-                list.appendChild(empty);
-            }
-
-            data.comments.forEach(comment => {
-                const item = document.createElement("div");
-                item.className = "comment";
-
-                const name = document.createElement("strong");
-                name.textContent = comment.username;
-
-                const body = document.createElement("div");
-                body.textContent = comment.body;
-
-                item.append(name, body);
-                list.appendChild(item);
-            });
-
-            document.getElementById("comment-status").textContent = "";
+            await postJSON(`/comment/${currentCommentPhoto}`, { body });
+            input.value = "";
+            await openComments(
+                currentCommentPhoto,
+                document.getElementById("modal-image").src
+            );
         } catch (error) {
             document.getElementById("comment-status").textContent = error.message;
         }
-    }
+    });
+}
 
-    const commentForm = document.getElementById("comment-form");
+const photoInput = document.getElementById("photo-input");
+if (photoInput) {
+    photoInput.addEventListener("change", () => {
+        const file = photoInput.files[0];
+        if (!file) return;
 
-    if (commentForm) {
-        commentForm.addEventListener("submit", async event => {
-            event.preventDefault();
+        if (file.size > 5 * 1024 * 1024) {
+            alert("Images must be 5 MB or smaller.");
+            photoInput.value = "";
+            return;
+        }
 
-            if (!currentCommentPhoto) return;
+        const url = URL.createObjectURL(file);
+        const image = new Image();
 
-            const input = document.getElementById("comment-input");
-            const body = input.value.trim();
-            if (!body) return;
-
-            const status = document.getElementById("comment-status");
-            status.textContent = "Küldés...";
-
-            try {
-                await postJSON(`/comment/${currentCommentPhoto}`, { body });
-                input.value = "";
-                await openComments(
-                    currentCommentPhoto,
-                    document.getElementById("modal-image").src
-                );
-            } catch (error) {
-                status.textContent = error.message;
-            }
-        });
-    }
-
-    const photoInput = document.getElementById("photo-input");
-
-    if (photoInput) {
-        photoInput.addEventListener("change", () => {
-            const file = photoInput.files[0];
-            if (!file) return;
-
-            if (file.size > 5 * 1024 * 1024) {
-                alert("A kép legfeljebb 5 MB lehet.");
+        image.onload = () => {
+            URL.revokeObjectURL(url);
+            if (image.naturalHeight <= image.naturalWidth) {
+                alert("Only portrait images are allowed.");
                 photoInput.value = "";
                 return;
             }
+            document.getElementById("upload-form").requestSubmit();
+        };
 
-            const objectUrl = URL.createObjectURL(file);
-            const img = new Image();
+        image.onerror = () => {
+            URL.revokeObjectURL(url);
+            alert("Invalid image file.");
+            photoInput.value = "";
+        };
 
-            img.onload = () => {
-                URL.revokeObjectURL(objectUrl);
-
-                if (img.naturalHeight <= img.naturalWidth) {
-                    alert("Csak álló képet tölthetsz fel!");
-                    photoInput.value = "";
-                    return;
-                }
-
-                document.getElementById("upload-form").requestSubmit();
-            };
-
-            img.onerror = () => {
-                URL.revokeObjectURL(objectUrl);
-                alert("A fájl nem érvényes kép.");
-                photoInput.value = "";
-            };
-
-            img.src = objectUrl;
-        });
-    }
-
-    document.addEventListener("keydown", event => {
-        if (event.key === "Escape") hideModal();
+        image.src = url;
     });
+}
+
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape") hideModal();
+});
 </script>
 </body>
 </html>
