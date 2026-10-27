@@ -9,7 +9,7 @@ from psycopg.rows import dict_row
 from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, jsonify, abort
+    session, flash, jsonify
 )
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -22,7 +22,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FOOTRATE_SECRET_KEY")
 
 if not app.secret_key:
-    raise RuntimeError("Hiányzik a FOOTRATE_SECRET_KEY.")
+    raise RuntimeError("Missing FOOTRATE_SECRET_KEY.")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -31,9 +31,9 @@ ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "").strip()
 BUCKET_NAME = "FootPhotos"
 
 if not DATABASE_URL:
-    raise RuntimeError("Hiányzik a DATABASE_URL.")
+    raise RuntimeError("Missing DATABASE_URL.")
 if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Hiányzik a Supabase konfiguráció.")
+    raise RuntimeError("Missing Supabase configuration.")
 
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 app.config["SESSION_COOKIE_HTTPONLY"] = True
@@ -55,7 +55,6 @@ def connect_db():
 
 
 def init_db():
-    # A meglévő users, photos és ratings táblákat nem töröljük.
     with connect_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -100,7 +99,7 @@ def login_required(func):
     def wrapper(*args, **kwargs):
         if not session.get("user_id"):
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify(ok=False, error="Jelentkezz be!"), 401
+                return jsonify(ok=False, error="Please log in."), 401
             return redirect(url_for("login"))
         return func(*args, **kwargs)
     return wrapper
@@ -200,11 +199,11 @@ def register():
         password = request.form.get("password", "")
 
         if len(username) < 3 or len(username) > 30:
-            flash("A felhasználónév 3–30 karakter legyen.")
+            flash("Your username must be between 3 and 30 characters.")
             return render_template("register.html")
 
         if len(password) < 8:
-            flash("A jelszó legalább 8 karakter legyen.")
+            flash("Your password must be at least 8 characters long.")
             return render_template("register.html")
 
         with connect_db() as conn:
@@ -214,7 +213,7 @@ def register():
                     (username,)
                 )
                 if cur.fetchone():
-                    flash("Ez a felhasználónév már foglalt.")
+                    flash("This username is already taken.")
                     return render_template("register.html")
 
                 cur.execute("""
@@ -222,7 +221,7 @@ def register():
                     VALUES (%s, %s)
                 """, (username, generate_password_hash(password)))
 
-        flash("Sikeres regisztráció. Most jelentkezz be!")
+        flash("Registration successful. Please log in.")
         return redirect(url_for("login"))
 
     return render_template("register.html")
@@ -245,7 +244,7 @@ def login():
         if not user or not check_password_hash(
             user["password_hash"], password
         ):
-            flash("Hibás felhasználónév vagy jelszó.")
+            flash("Incorrect username or password.")
             return render_template("login.html")
 
         session.clear()
@@ -267,23 +266,23 @@ def logout():
 def upload():
     uploaded = request.files.get("photo")
     if not uploaded or not uploaded.filename:
-        flash("Válassz ki egy képet!")
+        flash("Please select an image.")
         return redirect(url_for("index"))
 
     try:
         raw = uploaded.read()
         if not raw:
-            raise ValueError("Üres fájl.")
+            raise ValueError("The file is empty.")
 
         with Image.open(io.BytesIO(raw)) as original:
             if original.format not in ("JPEG", "PNG", "WEBP"):
-                raise ValueError("Csak JPG, PNG vagy WEBP kép tölthető fel.")
+                raise ValueError("Only JPG, PNG, and WEBP images are allowed.")
 
             image = ImageOps.exif_transpose(original)
             image.load()
 
             if image.height <= image.width:
-                raise ValueError("Csak álló képet tölthetsz fel!")
+                raise ValueError("Only portrait images are allowed.")
 
             image = image.convert("RGB")
             output = io.BytesIO()
@@ -291,7 +290,7 @@ def upload():
             image_bytes = output.getvalue()
 
     except (UnidentifiedImageError, OSError, ValueError) as exc:
-        flash(str(exc) or "Érvénytelen kép.")
+        flash(str(exc) or "Invalid image file.")
         return redirect(url_for("index"))
 
     filename = f"{uuid.uuid4().hex}.jpg"
@@ -305,15 +304,15 @@ def upload():
                     VALUES (%s, %s)
                 """, (session["user_id"], filename))
     except Exception:
-        app.logger.exception("Képfeltöltési hiba")
+        app.logger.exception("Image upload failed")
         try:
             storage_delete(filename)
         except Exception:
-            app.logger.exception("A feltöltött fájl takarítása sikertelen")
-        flash("A képfeltöltés nem sikerült.")
+            app.logger.exception("Storage cleanup failed")
+        flash("Image upload failed. Please try again.")
         return redirect(url_for("index"))
 
-    flash("A kép sikeresen feltöltve.")
+    flash("Image uploaded successfully.")
     return redirect(url_for("index"))
 
 
@@ -321,10 +320,10 @@ def upload():
 @login_required
 def react(photo_id, reaction_type):
     if reaction_type not in ("like", "superheart"):
-        return jsonify(ok=False, error="Ismeretlen reakció."), 400
+        return jsonify(ok=False, error="Unknown reaction."), 400
 
     if not get_photo(photo_id):
-        return jsonify(ok=False, error="A kép nem található."), 404
+        return jsonify(ok=False, error="Image not found."), 404
 
     user_id = session["user_id"]
 
@@ -335,9 +334,9 @@ def react(photo_id, reaction_type):
                     SELECT 1 FROM photo_reactions
                     WHERE photo_id=%s AND user_id=%s AND reaction_type=%s
                 """, (photo_id, user_id, reaction_type))
-                active_before = cur.fetchone() is not None
+                existed = cur.fetchone() is not None
 
-                if active_before:
+                if existed:
                     cur.execute("""
                         DELETE FROM photo_reactions
                         WHERE photo_id=%s AND user_id=%s AND reaction_type=%s
@@ -363,15 +362,15 @@ def react(photo_id, reaction_type):
             photo_id=photo_id, reaction_type=reaction_type
         )
     except Exception:
-        app.logger.exception("Reakciós hiba")
-        return jsonify(ok=False, error="A reakció mentése nem sikerült."), 500
+        app.logger.exception("Reaction failed")
+        return jsonify(ok=False, error="Could not save your reaction."), 500
 
 
 @app.route("/comments/<int:photo_id>")
 @login_required
 def get_comments(photo_id):
     if not get_photo(photo_id):
-        return jsonify(ok=False, error="A kép nem található."), 404
+        return jsonify(ok=False, error="Image not found."), 404
 
     with connect_db() as conn:
         with conn.cursor() as cur:
@@ -394,14 +393,14 @@ def get_comments(photo_id):
 @login_required
 def add_comment(photo_id):
     if not get_photo(photo_id):
-        return jsonify(ok=False, error="A kép nem található."), 404
+        return jsonify(ok=False, error="Image not found."), 404
 
     data = request.get_json(silent=True) or {}
     body = data.get("body", "").strip()
 
     if not body or len(body) > 500:
         return jsonify(
-            ok=False, error="A komment 1–500 karakter hosszú lehet."
+            ok=False, error="Comments must be between 1 and 500 characters."
         ), 400
 
     with connect_db() as conn:
@@ -427,12 +426,11 @@ def delete_photo(photo_id):
     photo = get_photo(photo_id)
 
     if not photo:
-        return jsonify(ok=False, error="A kép nem található."), 404
+        return jsonify(ok=False, error="Image not found."), 404
 
-    # Admin bármelyik képet törölheti; más csak a sajátját.
     if photo["user_id"] != session["user_id"] and not is_admin():
         return jsonify(
-            ok=False, error="Csak a saját képedet törölheted."
+            ok=False, error="You can only delete your own images."
         ), 403
 
     try:
@@ -443,23 +441,23 @@ def delete_photo(photo_id):
         try:
             storage_delete(photo["filename"])
         except Exception:
-            app.logger.exception("A fájl tárhelyről való törlése sikertelen")
+            app.logger.exception("Could not delete image from storage")
 
         if wants_json():
             return jsonify(ok=True)
         return redirect(url_for("index"))
 
     except Exception:
-        app.logger.exception("Képtörlési hiba")
+        app.logger.exception("Image deletion failed")
         if wants_json():
-            return jsonify(ok=False, error="A törlés nem sikerült."), 500
-        flash("A képet nem sikerült törölni.")
+            return jsonify(ok=False, error="Image deletion failed."), 500
+        flash("Could not delete the image.")
         return redirect(url_for("index"))
 
 
 @app.errorhandler(413)
 def file_too_large(_error):
-    message = "A kép legfeljebb 5 MB lehet."
+    message = "Images must be 5 MB or smaller."
     if wants_json():
         return jsonify(ok=False, error=message), 413
     flash(message)
