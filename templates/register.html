@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Regisztráció · FootRate{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:460px;margin:30px auto">
+  <h2>Fiók létrehozása</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Felhasználónév</label>
+    <input type="text" name="username" minlength="3" maxlength="20" required autocomplete="username" placeholder="pl. Axel123">
+    <label>Jelszó (legalább 8 karakter)</label>
+    <input type="password" name="password" minlength="8" required autocomplete="new-password">
+    <button type="submit">Regisztráció</button>
+  </form>
+  <p class="muted">Már van fiókod? <a href="{{ url_for('login') }}">Bejelentkezés</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#19192c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+  <title>{% block title %}FootRate{% endblock %}</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0c0c12; --panel:#171720; --line:#302b3b; --purple:#bd83ff; --muted:#aaa5b7; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#fff; }
+    header { padding:25px 16px; text-align:center; background:linear-gradient(135deg,#19192c,#33204d); border-bottom:1px solid #39304c; }
+    header h1 { margin:0; font-size:32px; } header h1 span { color:var(--purple); }
+    header p { color:#c5bed0; margin-bottom:0; }
+    main { max-width:1050px; margin:28px auto; padding:0 16px; }
+    a { color:#d6b4ff; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px; flex-wrap:wrap; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:22px; }
+    input,select,button { font:inherit; }
+    input[type=text],input[type=password],input[type=file],select { width:100%; padding:12px; border:1px solid #514064; border-radius:9px; background:#24212e; color:white; margin:7px 0 14px; }
+    button,.button { display:inline-block; padding:11px 15px; background:#7143a3; color:white; border:0; border-radius:9px; cursor:pointer; text-decoration:none; }
+    button:hover,.button:hover { background:#8754bf; }
+    .secondary { background:#33263f; } .danger { background:#49232e; }
+    .admin-tag { display:inline-block; margin-left:6px; padding:4px 7px; border-radius:6px; background:#6a4b12; color:#ffe4a3; font-size:11px; font-weight:bold; letter-spacing:.5px; }
+    .messages { padding:0; list-style:none; } .messages li { background:#252035; border:1px solid #44345c; padding:10px 12px; border-radius:9px; margin-bottom:8px; }
+    .gallery { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:18px; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:15px; overflow:hidden; min-width:0; }
+    .card img { width:100%; height:230px; object-fit:cover; display:block; }
+    .content { padding:15px; } .content h3 { margin:0 0 9px; overflow-wrap:anywhere; }
+    .muted { color:var(--muted); font-size:14px; }
+    .score { color:#d1a5ff; font-weight:bold; margin:10px 0; }
+    .inline { display:flex; gap:8px; align-items:center; } .inline select { flex:1; margin-bottom:8px; }
+    footer { text-align:center; color:#777284; padding:30px 12px; font-size:13px; }
+    .upload-label { display:block; padding:13px; border:1px dashed #8b65b4; border-radius:10px; text-align:center; cursor:pointer; margin:8px 0 14px; background:#201a2b; }
+    input[type=file] { font-size:16px; }
+    button,.button,select,input { min-height:44px; }
+    button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline:2px solid #d6b4ff; outline-offset:3px; }
+    @media(max-width:600px) {
+      header { padding:22px 12px; }
+      header h1 { font-size:27px; }
+      main { margin:18px auto; padding:0 12px; }
+      .panel { padding:15px; border-radius:13px; }
+      .topbar { align-items:stretch; }
+      .topbar form, .topbar form button { width:100%; }
+      .gallery { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+      .card img { height:clamp(125px, 43vw, 220px); }
+      .content { padding:10px; }
+      .content h3 { font-size:15px; }
+      .muted { font-size:12px; }
+      .inline { display:flex; flex-direction:column; align-items:stretch; gap:0; }
+      .inline select, .inline button { width:100%; }
+      .button, button { min-height:46px; }
+    }
+    @media(max-width:360px) {
+      .gallery { grid-template-columns:1fr; }
+      .card img { height:230px; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Foot<span>Rate</span> ★</h1>
+  <p>Közös galéria · Értékelés 1–10-ig</p>
+</header>
+<main>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}<ul class="messages">{% for message in messages %}<li>{{ message }}</li>{% endfor %}</ul>{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer>FootRate · Csak olyan képet tölts fel, amelyet szabad megosztanod. Ne adj meg személyes adatokat.</footer>
+</body>
+</html>

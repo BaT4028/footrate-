@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Galéria · FootRate{% endblock %}
+{% block content %}
+<div class="topbar">
+  <div>Bejelentkezve: <strong>{{ username }}</strong>{% if admin %} <span class="admin-tag">ADMIN</span>{% endif %}</div>
+  <form method="post" action="{{ url_for('logout') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="secondary" type="submit">Kijelentkezés</button>
+  </form>
+</div>
+
+<div class="panel">
+  <h2>📸 Saját kép feltöltése</h2>
+  <p class="muted">JPG, PNG vagy WEBP · legfeljebb 5 MB. Mások értékelhetik, te a sajátodat nem.</p>
+  <form method="post" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" required>
+    <button type="submit">Kép feltöltése</button>
+  </form>
+</div>
+
+<h2>🌐 Közös galéria</h2>
+{% if photos %}
+<div class="gallery">
+  {% for photo in photos %}
+  <article class="card">
+    <img src="{{ photo['image_url'] }}" alt="Feltöltötte: {{ photo['username'] }}">
+    <div class="content">
+      <h3>{{ photo['username'] }}</h3>
+      <div class="score">
+        {% if photo['average'] is not none %}⭐ {{ photo['average'] }}/10{% else %}⭐ Még nincs értékelés{% endif %}
+      </div>
+      <p class="muted">{{ photo['rating_count'] }} értékelés</p>
+      {% if photo['user_id'] == session['user_id'] %}
+        <p class="muted">Ez a saját képed — nem értékelheted.</p>
+        <form method="post" action="{{ url_for('delete_photo', photo_id=photo['id']) }}" onsubmit="return confirm('Biztosan törlöd ezt a képet?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="danger" type="submit">Saját kép törlése</button>
+        </form>
+      {% elif admin %}
+        <p class="muted">Adminisztrátori moderálás</p>
+        <form method="post" action="{{ url_for('delete_photo', photo_id=photo['id']) }}" onsubmit="return confirm('Biztosan törlöd ezt a képet a galériából?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="danger" type="submit">🛡️ Kép törlése (admin)</button>
+        </form>
+      {% else %}
+        <form method="post" action="{{ url_for('rate', photo_id=photo['id']) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="score-{{ photo['id'] }}">Értékelésed</label>
+          <div class="inline">
+            <select id="score-{{ photo['id'] }}" name="score" required>
+              {% for n in range(1, 11) %}
+              <option value="{{ n }}" {% if photo['my_score'] == n %}selected{% endif %}>{{ n }} / 10</option>
+              {% endfor %}
+            </select>
+            <button type="submit">{% if photo['my_score'] is not none %}Módosítás{% else %}Értékelés{% endif %}</button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel"><p>Még nincs kép. Tölts fel egyet, és hívd meg a többieket!</p></div>
+{% endif %}
+{% endblock %}
